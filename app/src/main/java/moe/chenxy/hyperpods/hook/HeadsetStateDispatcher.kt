@@ -6,7 +6,9 @@ import android.app.StatusBarManager
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHeadset
 import android.bluetooth.BluetoothProfile
+import android.content.ContextWrapper
 import android.content.Intent
+import android.os.Handler
 import com.highcapable.yukihookapi.hook.entity.YukiBaseHooker
 import com.highcapable.yukihookapi.hook.factory.method
 import com.highcapable.yukihookapi.hook.type.android.IntentClass
@@ -17,33 +19,27 @@ import moe.chenxy.hyperpods.utils.SystemApisUtils.setIconVisibility
 object HeadsetStateDispatcher : YukiBaseHooker() {
     @SuppressLint("StaticFieldLeak")
     override fun onHook() {
-        "com.android.bluetooth.hfp.HeadsetA2dpSync".toClass().apply {
-            var mHeadsetService : Service? = null
+        "com.android.bluetooth.a2dp.A2dpService".toClass().apply {
             method {
-                name = "updateA2DPConnectionState"
-                param(IntentClass)
+                name = "handleConnectionStateChanged"
+                paramCount = 3
             }.hook {
                 after {
-                    val intent = this.args[0] as Intent
-                    val currState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, 0)
-                    val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
-                    device?.let {
+                    val currState = this.args[2] as Int
+                    val fromState = this.args[1] as Int
+                    val device = this.args[0] as BluetoothDevice?
+                    val handler = XposedHelpers.getObjectField(this.instance, "mHandler") as Handler
+                    if (device == null || currState == fromState) {
+                        return@after
+                    }
+                    handler.post {
+			val context = this.instance as ContextWrapper
                         if (currState == BluetoothHeadset.STATE_CONNECTED) {
                             // Show Wireless Pods icon
-                            if (mHeadsetService == null)
-                                mHeadsetService = XposedHelpers.getObjectField(
-                                    this.instance,
-                                    "mHeadsetService"
-                                ) as Service
-                            val statusBarManager = mHeadsetService!!.getSystemService("statusbar") as StatusBarManager
+                            val statusBarManager = context.getSystemService("statusbar") as StatusBarManager
                             statusBarManager.setIconVisibility("wireless_headset", true)
                         } else if (currState == BluetoothHeadset.STATE_DISCONNECTING || currState == BluetoothHeadset.STATE_DISCONNECTED) {
-                            if (mHeadsetService == null)
-                                mHeadsetService = XposedHelpers.getObjectField(
-                                    this.instance,
-                                    "mHeadsetService"
-                                ) as Service
-                            val statusBarManager = mHeadsetService!!.getSystemService("statusbar") as StatusBarManager
+                            val statusBarManager = context.getSystemService("statusbar") as StatusBarManager
                             statusBarManager.setIconVisibility("wireless_headset", false)
                         }
                     }
