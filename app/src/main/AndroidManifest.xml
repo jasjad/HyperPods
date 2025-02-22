@@ -16,7 +16,7 @@
         <!-- Set your Xposed Module description -->
         <meta-data
             android:name="xposeddescription"
-            android:value="Apple AirPods Support for Xiaomi HyperOS." />
+            android:value="Xiaomi HyperPods" />
 
         <!-- The minimum Xposed version number -->
         <!-- If you are using EdXposed/LSPosed, the minimum recommended is 93 -->
